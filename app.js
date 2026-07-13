@@ -5,6 +5,5 @@ import "./drawing.js";
 import "./render.js";
 import "./rooms.js";
 import "./snap.js";
-import "./stage.js";
-
+import "./interaction.js";
 

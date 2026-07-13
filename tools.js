@@ -1,6 +1,7 @@
 import {
   setAktifMod,
   setMevcutCizim,
+  setSeciliGrupId,
 } from "./state.js";
 
 import {
@@ -9,6 +10,7 @@ import {
 } from "./stage.js";
 
 const tools = {
+  SELECT: document.getElementById("toolSelect"),
   LINE: document.getElementById("toolLine"),
   RECT: document.getElementById("toolRect"),
   SQUARE: document.getElementById("toolSquare"),
@@ -18,26 +20,20 @@ export function modDegistir(yeniMod) {
   setAktifMod(yeniMod);
   setMevcutCizim(null);
 
+  if (yeniMod !== "SELECT") {
+    setSeciliGrupId(null);
+
+    const silButonu = document.getElementById("btnDeleteSelected");
+    silButonu.classList.add("hidden");
+  }
+
   onizlemeKatmani.graphics.clear();
 
-  Object.keys(tools).forEach((mod) => {
-    tools[mod].className =
-      mod === yeniMod
-        ? "w-full bg-purple-600 hover:bg-purple-700 text-white text-left font-semibold py-2.5 px-3 rounded-xl text-sm transition shadow-sm"
-        : "w-full bg-purple-50 hover:bg-purple-100 text-purple-700 text-left font-semibold py-2.5 px-3 rounded-xl text-sm transition border border-purple-100";
-  });
-
+  // Mevcut buton renklendirme kodun...
   stage.update();
 }
 
-tools.LINE.addEventListener("click", () => {
-  modDegistir("LINE");
-});
-
-tools.RECT.addEventListener("click", () => {
-  modDegistir("RECT");
-});
-
-tools.SQUARE.addEventListener("click", () => {
-  modDegistir("SQUARE");
-});
+tools.SELECT.addEventListener("click", () => modDegistir("SELECT"));
+tools.LINE.addEventListener("click", () => modDegistir("LINE"));
+tools.RECT.addEventListener("click", () => modDegistir("RECT"));
+tools.SQUARE.addEventListener("click", () => modDegistir("SQUARE"));

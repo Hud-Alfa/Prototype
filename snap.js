@@ -118,3 +118,87 @@ export function kenarVarMi(x1, y1, x2, y2) {
     cizgiEslesiyorMu(cizgi, x1, y1, x2, y2),
   );
 }
+
+export function hesaplaGrupTasimaSnap(
+  tasinanCizgiler,
+  hamDx,
+  hamDy,
+  tasinanGrupId,
+) {
+  let sonucDx = hamDx;
+  let sonucDy = hamDy;
+  let enKisaMesafe = SNAP_MESAFESI;
+
+  const digerCizgiler = cizgiler.filter(
+    (cizgi) => cizgi.groupId !== tasinanGrupId,
+  );
+
+  for (const tasinanCizgi of tasinanCizgiler) {
+    const tasinanNoktalar = [
+      {
+        x: tasinanCizgi.x1 + hamDx,
+        y: tasinanCizgi.y1 + hamDy,
+      },
+      {
+        x: tasinanCizgi.x2 + hamDx,
+        y: tasinanCizgi.y2 + hamDy,
+      },
+    ];
+
+    for (const nokta of tasinanNoktalar) {
+      for (const hedefCizgi of digerCizgiler) {
+        const hedefNoktalar = [
+          { x: hedefCizgi.x1, y: hedefCizgi.y1 },
+          { x: hedefCizgi.x2, y: hedefCizgi.y2 },
+        ];
+
+        for (const hedefNokta of hedefNoktalar) {
+          const mesafe = mesafeBul(
+            nokta.x,
+            nokta.y,
+            hedefNokta.x,
+            hedefNokta.y,
+          );
+
+          if (mesafe < enKisaMesafe) {
+            enKisaMesafe = mesafe;
+
+            sonucDx =
+              hamDx +
+              (hedefNokta.x - nokta.x);
+
+            sonucDy =
+              hamDy +
+              (hedefNokta.y - nokta.y);
+          }
+        }
+
+        const kenarSonucu = cizgiUzerindeEnYakinNokta(
+          nokta.x,
+          nokta.y,
+          hedefCizgi.x1,
+          hedefCizgi.y1,
+          hedefCizgi.x2,
+          hedefCizgi.y2,
+        );
+
+        if (kenarSonucu.mesafe < enKisaMesafe) {
+          enKisaMesafe = kenarSonucu.mesafe;
+
+          sonucDx =
+            hamDx +
+            (kenarSonucu.x - nokta.x);
+
+          sonucDy =
+            hamDy +
+            (kenarSonucu.y - nokta.y);
+        }
+      }
+    }
+  }
+
+  return {
+    dx: Math.round(sonucDx),
+    dy: Math.round(sonucDy),
+  };
+}

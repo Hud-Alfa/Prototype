@@ -60,6 +60,14 @@
                 </div>
 
                 <button
+                     id="toolSelect"
+                    type="button"
+                     class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 text-left font-semibold py-2.5 px-3 rounded-xl text-sm transition border border-purple-100"
+                >
+                        🖱️ Seç ve Taşı
+                </button>
+
+                <button
                     id="toolLine"
                     type="button"
                     class="w-full bg-purple-600 hover:bg-purple-700 text-white text-left font-semibold py-2.5 px-3 rounded-xl text-sm transition shadow-sm"
@@ -90,12 +98,23 @@
                     🚀 <strong>EaselJS Devrede</strong>
                 </div>
 
-                <canvas
-                    id="cizimAlani"
-                    width="750"
-                    height="480"
-                    class="bg-slate-50/50 rounded-xl shadow-inner border border-purple-200/60"
-                ></canvas>
+                <div id="canvasWrapper" class="relative inline-block">
+                 <canvas
+                             id="cizimAlani"
+                             width="750"
+                            height="480"
+                            class="bg-slate-50/50 rounded-xl shadow-inner border border-purple-200/60"
+                     ></canvas>
+
+                     <button
+                         id="btnDeleteSelected"
+                         type="button"
+                        class="hidden absolute z-10 bg-red-500 hover:bg-red-600 text-white rounded-full w-9 h-9 shadow-lg"
+                        title="Seçili şekli sil"
+                    >
+                            🗑
+                    </button>
+                </div>
             </div>
         </div>
     </div>

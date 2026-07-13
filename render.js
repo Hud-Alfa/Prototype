@@ -1,6 +1,7 @@
 import {
   cizgiler,
   odalar,
+  seciliGrupId,
 } from "./state.js";
 
 import {
@@ -24,15 +25,24 @@ export function ekraniGuncelle() {
   });
 
   // Çizgileri ve köşelerdeki kırmızı daireleri EaselJS ile çiziyoruz
-  cizgiler.forEach((c) => {
-    cizgiKatmani.graphics
-      .beginStroke("#7945ac")
-      .setStrokeStyle(4)
-      .moveTo(c.x1, c.y1)
-      .lineTo(c.x2, c.y2);
-    cizgiKatmani.graphics.beginFill("#9a44ef").drawCircle(c.x1, c.y1, 4);
-    cizgiKatmani.graphics.beginFill("#9144ef").drawCircle(c.x2, c.y2, 4);
-  });
+  cizgiler.forEach((cizgi) => {
+  const secili =
+    cizgi.groupId === seciliGrupId;
+
+  cizgiKatmani.graphics
+    .beginStroke(secili ? "#ef4444" : "#7945ac")
+    .setStrokeStyle(secili ? 6 : 4)
+    .moveTo(cizgi.x1, cizgi.y1)
+    .lineTo(cizgi.x2, cizgi.y2);
+
+  cizgiKatmani.graphics
+    .beginFill(secili ? "#ef4444" : "#9a44ef")
+    .drawCircle(cizgi.x1, cizgi.y1, secili ? 5 : 4);
+
+  cizgiKatmani.graphics
+    .beginFill(secili ? "#ef4444" : "#9144ef")
+    .drawCircle(cizgi.x2, cizgi.y2, secili ? 5 : 4);
+});
 
   // Sahneyi (Stage) tarayıcıya yansıt
   stage.update();

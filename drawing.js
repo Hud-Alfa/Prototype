@@ -2,8 +2,10 @@ import {
   cizgiler,
   aktifMod,
   mevcutCizim,
+  aktifCizimGrupId,
   SNAP_MESAFESI,
   setMevcutCizim,
+  setAktifCizimGrupId,
 } from "./state.js";
 
 import {
@@ -26,12 +28,15 @@ canvas.addEventListener("mousedown", (e) => {
   if (e.button !== 2) return;
 
   setMevcutCizim(null);
+  setAktifCizimGrupId(null);
+
   onizlemeKatmani.graphics.clear();
   stage.update();
 });
 
 // SOL TIK: çizimi başlat veya tamamla
 stage.on("stagemousedown", (e) => {
+  if (aktifMod === "SELECT") return;
   if (e.nativeEvent.button === 2) return;
 
   const x = e.stageX;
@@ -53,6 +58,7 @@ stage.on("stagemousedown", (e) => {
 
 // MOUSE HAREKETİ: önizlemeyi güncelle
 stage.on("stagemousemove", (e) => {
+  if (aktifMod === "SELECT") return;
   if (!mevcutCizim) return;
 
   const snap = hesaplaSnap(e.stageX, e.stageY);
@@ -70,6 +76,12 @@ stage.on("stagemousemove", (e) => {
 
 function cizgiModundaTiklama(snap, miknatislandiMi) {
   if (!mevcutCizim) {
+    const grupId =
+      aktifCizimGrupId ??
+      crypto.randomUUID();
+
+    setAktifCizimGrupId(grupId);
+
     setMevcutCizim({
       x1: snap.x,
       y1: snap.y,
@@ -96,16 +108,21 @@ function cizgiModundaTiklama(snap, miknatislandiMi) {
     mevcutCizim.y1 !== finalNokta.y;
 
   if (cizgiBosDegil) {
-    cizgiEkle({
-      x1: mevcutCizim.x1,
-      y1: mevcutCizim.y1,
-      x2: finalNokta.x,
-      y2: finalNokta.y,
-    });
+    cizgiEkle(
+      {
+        x1: mevcutCizim.x1,
+        y1: mevcutCizim.y1,
+        x2: finalNokta.x,
+        y2: finalNokta.y,
+      },
+      aktifCizimGrupId,
+    );
   }
 
   if (miknatislandiMi) {
     setMevcutCizim(null);
+    setAktifCizimGrupId(null);
+
     onizlemeKatmani.graphics.clear();
   } else {
     setMevcutCizim({
@@ -166,6 +183,8 @@ function kutuModundaTiklama(snap) {
   ]);
 
   setMevcutCizim(null);
+  setAktifCizimGrupId(null);
+
   onizlemeKatmani.graphics.clear();
   odalariYenidenHesapla();
 }

@@ -11,35 +11,29 @@ import { odalariYenidenHesapla } from "./rooms.js";
 import { ekraniGuncelle } from "./render.js";
 import { onizlemeKatmani } from "./stage.js";
 
-export function cizgiEkle(yeniCizgiler) {
-  undoStack.push(JSON.stringify(cizgiler));
-  setRedoStack([]);
-
-  if (Array.isArray(yeniCizgiler)) {
-    cizgiler.push(...yeniCizgiler);
-  } else {
-    cizgiler.push(yeniCizgiler);
-  }
+function yeniId() {
+  return crypto.randomUUID();
 }
 
-export function tumunuSil() {
-  if (cizgiler.length === 0) return;
-
-  // Silme işleminden önce mevcut durumu kaydet
-  undoStack.push(JSON.stringify(cizgiler));
-
-  // Yeni işlem yapıldığı için redo geçmişini temizle
+export function gecmiseKaydet(durum = cizgiler) {
+  undoStack.push(JSON.stringify(durum));
   setRedoStack([]);
+}
 
-  // Çizimleri temizle
-  setCizgiler([]);
+export function cizgiEkle(yeniCizgiler, groupId = yeniId()) {
+  gecmiseKaydet();
 
-  // Devam eden çizimi ve önizlemeyi temizle
-  setMevcutCizim(null);
-  onizlemeKatmani.graphics.clear();
+  const liste = Array.isArray(yeniCizgiler)
+    ? yeniCizgiler
+    : [yeniCizgiler];
 
-  odalariYenidenHesapla();
-  ekraniGuncelle();
+  const kimlikliCizgiler = liste.map((cizgi) => ({
+    ...cizgi,
+    id: cizgi.id ?? yeniId(),
+    groupId: cizgi.groupId ?? groupId,
+  }));
+
+  cizgiler.push(...kimlikliCizgiler);
 }
 
 document.getElementById("btnUndo").addEventListener("click", () => {
@@ -47,10 +41,9 @@ document.getElementById("btnUndo").addEventListener("click", () => {
 
   redoStack.push(JSON.stringify(cizgiler));
 
-  const oncekiCizgiler = JSON.parse(undoStack.pop());
-  setCizgiler(oncekiCizgiler);
-
+  setCizgiler(JSON.parse(undoStack.pop()));
   setMevcutCizim(null);
+
   onizlemeKatmani.graphics.clear();
 
   odalariYenidenHesapla();
@@ -62,14 +55,11 @@ document.getElementById("btnRedo").addEventListener("click", () => {
 
   undoStack.push(JSON.stringify(cizgiler));
 
-  const sonrakiCizgiler = JSON.parse(redoStack.pop());
-  setCizgiler(sonrakiCizgiler);
-
+  setCizgiler(JSON.parse(redoStack.pop()));
   setMevcutCizim(null);
+
   onizlemeKatmani.graphics.clear();
 
   odalariYenidenHesapla();
   ekraniGuncelle();
 });
-
-document.getElementById("btnClear").addEventListener("click", tumunuSil);
