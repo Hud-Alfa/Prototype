@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>EaselJS ile WebCAD Alıştırması</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body class="bg-gradient-to-br from-purple-100 via-fuchsia-50 to-pink-100 text-slate-800 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-5 border border-purple-200/50 flex flex-col gap-4">
+
+        <h2 class="text-xl font-bold text-purple-600 flex items-center gap-2 border-b border-purple-100 pb-3">
+            📐 Prototip
+        </h2>
+
+        <div class="flex gap-4">
+
+            <div class="w-48 bg-white p-3 rounded-xl border border-purple-100 flex flex-col gap-3 shadow-sm">
+
+                <div class="text-xs font-bold text-purple-400 uppercase tracking-wider">
+                    İşlemler
+                </div>
+
+                <div class="flex gap-2">
+                    <button
+                        id="btnUndo"
+                        type="button"
+                        class="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold py-1.5 px-2 rounded-lg text-xs transition border border-purple-200/60"
+                    >
+                        ↩ Geri
+                    </button>
+
+                    <button
+                        id="btnRedo"
+                        type="button"
+                        class="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold py-1.5 px-2 rounded-lg text-xs transition border border-purple-200/60"
+                    >
+                        ↪ İleri
+                    </button>
+                </div>
+
+                <div class="text-xs font-bold text-purple-400 uppercase tracking-wider mt-2">
+                    Çizim Araçları
+                </div>
+
+                <button
+                    id="toolLine"
+                    type="button"
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white text-left font-semibold py-2.5 px-3 rounded-xl text-sm transition shadow-sm"
+                >
+                    ✏️ Çizgi Çiz
+                </button>
+
+                <button
+                    id="toolRect"
+                    type="button"
+                    class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 text-left font-semibold py-2.5 px-3 rounded-xl text-sm transition border border-purple-100"
+                >
+                    🟦 Dikdörtgen Çiz
+                </button>
+
+                <button
+                    id="toolSquare"
+                    type="button"
+                    class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 text-left font-semibold py-2.5 px-3 rounded-xl text-sm transition border border-purple-100"
+                >
+                    🔲 Kare Çiz
+                </button>
+            </div>
+
+            <div class="flex-1 relative flex flex-col gap-2">
+
+                <div class="bg-purple-50/50 p-2.5 rounded-xl border border-purple-100 text-xs text-purple-700 font-medium">
+                    🚀 <strong>EaselJS Devrede</strong>
+                </div>
+
+                <canvas
+                    id="cizimAlani"
+                    width="750"
+                    height="480"
+                    class="bg-slate-50/50 rounded-xl shadow-inner border border-purple-200/60"
+                ></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+</body>
+</html>

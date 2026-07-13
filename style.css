@@ -1,0 +1,12 @@
+/* Canvas içindeki fare imlecini haç işaretine dönüştürür */
+canvas {
+    cursor: crosshair;
+}
+
+/* Gelecekte ekleyeceğimiz özel animasyonlar veya stiller buraya gelebilir */
+.bg-slate-850 {
+    background-color: #56346b;
+}
+.bg-slate-750 {
+    background-color: #594471;
+}
