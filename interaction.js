@@ -1,13 +1,12 @@
-import { aktifMod, cizgiler } from "./state.js"; // cizgiler eklendi
-import { stage, viewport } from "./stage.js"; // viewport eklendi
+import { aktifMod, cizgiler, setSeciliGrupId, setSeciliGrupIdleri } from "./state.js";
+import { stage, viewport } from "./stage.js";
 import { sahnedenDunyaya } from "./camera.js";
 
-import { grupAnahtariAl } from "./interaction-selection-helpers.js";
 import { tiklananCizgiyiBul, tiklananOdayiBul } from "./interaction-select.js";
 
 import {
   grupSecVeSuruklemeyeHazirla,
-  koseSuruklemeyeHazirla, // interaction-drag'e eklediğimiz yeni fonksiyon
+  koseSuruklemeyeHazirla,
   suruklemeyiTasi,
   suruklemeyiBitir,
   suruklemeAktifMi,
@@ -32,7 +31,6 @@ import "./interaction-delete-button.js";
  * Tıklama önceliğinde 1. sıradadır.
  */
 function tiklananKoseyiBul(dunyaNoktasi) {
-  // Ekranda sabit bir tıklama yarıçapı (örn. 10px) sağlamak için zoom oranına bölüyoruz
   const TIKLAMA_TOLERANSI = 10 / viewport.scaleX; 
 
   for (const cizgi of cizgiler) {
@@ -51,8 +49,7 @@ function tiklananKoseyiBul(dunyaNoktasi) {
 
 /**
  * Sol tuşa basıldığında: önce köşeye tıklanıp tıklanmadığına bakar,
- * bir çizgi/odaya tıklanmışsa seçip sürüklemeye hazırlar,
- * boş alana tıklanmışsa kutu seçimini başlatır.
+ * bir çizgiye tıklanmışsa SADECE O TEKİL kenarı seçer ve silme butonunu tetikler.
  */
 stage.on("stagemousedown", (event) => {
   if (aktifMod !== "SELECT") return;
@@ -79,17 +76,13 @@ stage.on("stagemousedown", (event) => {
   );
 
   if (tiklananCizgi) {
-    const grupId = grupAnahtariAl(tiklananCizgi);
+    // KRİTİK DEĞİŞİKLİK: Grup mantığını ezip geçiyoruz. 
+    // Seçim listelerine grup ID'si yerine çizginin kendi özgün ID'sini kaydediyoruz.
+    setSeciliGrupId(null);
+    setSeciliGrupIdleri([tiklananCizgi.id]); 
 
-    if (!grupId) {
-      console.warn(
-        "Seçilen çizginin id veya groupId değeri bulunamadı.",
-        tiklananCizgi,
-      );
-      return;
-    }
-
-    grupSecVeSuruklemeyeHazirla(grupId, dunyaNoktasi);
+    // Sürükleme ve silme butonunun konumlanması için çizgi ID'sini gönderiyoruz
+    grupSecVeSuruklemeyeHazirla(tiklananCizgi.id, dunyaNoktasi);
     return;
   }
 
@@ -111,10 +104,6 @@ stage.on("stagemousedown", (event) => {
   kutuSecimBaslat(dunyaNoktasi);
 });
 
-/**
- * Mouse hareket ederken: kutu seçimi aktifse çerçeveyi,
- * değilse (ve sürükleme aktifse) seçili grubu günceller.
- */
 stage.on("stagemousemove", (event) => {
   if (aktifMod !== "SELECT") return;
 
@@ -136,16 +125,12 @@ stage.on("stagemousemove", (event) => {
   hoverGuncelle(dunyaNoktasi);
 });
 
-/**
- * Mouse bırakıldığında kutu seçimi ya da sürükleme sonlandırılır.
- */
 stage.on("stagemouseup", (event) => {
-  const dunyaNoktasi = sahnedenDunyaya(
-    event.stageX,
-    event.stageY,
-  );
-
   if (kutuSecimiAktif) {
+    const dunyaNoktasi = sahnedenDunyaya(
+      event.stageX,
+      event.stageY,
+    );
     kutuSecimBitir(dunyaNoktasi);
     return;
   }
@@ -155,10 +140,6 @@ stage.on("stagemouseup", (event) => {
   suruklemeyiBitir();
 });
 
-/**
- * Mouse canvas dışındayken bırakılırsa da
- * sürükleme durumunu kapat.
- */
 window.addEventListener("mouseup", () => {
   suruklemeyiBitir();
 });
