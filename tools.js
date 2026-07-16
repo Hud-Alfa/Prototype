@@ -10,6 +10,8 @@ import {
   onizlemeKatmani,
 } from "./stage.js";
 
+import { hoverTemizle } from "./interaction-hover.js";
+
 const tools = {
   SELECT: document.getElementById("toolSelect"),
   LINE: document.getElementById("toolLine"),
@@ -26,6 +28,8 @@ const pasifButonClass =
 export function modDegistir(yeniMod) {
   setAktifMod(yeniMod);
   setMevcutCizim(null);
+
+  hoverTemizle();
 
   onizlemeKatmani.graphics.clear();
 

@@ -125,35 +125,43 @@ export function hesaplaSnap(mouseX, mouseY) {
   return enYakinNokta;
 }
 
-export function hesaplaHizalama(x, y) {
-  const donus = { x, y };
-  const esikMesafe = SNAP_MESAFESI / viewport.scaleX;
+// Çizim aracı, Shift basılı değilken açıyı bu adımın katlarına
+// (0°, 45°, 90°, 135°, 180° ...) otomatik kilitler. Shift basılıyken
+// serbestMi=true gönderilir ve açı hiç değiştirilmeden döner.
+const ACI_KILIT_ADIMI_DERECE = 45;
 
-  for (const cizgi of cizgiler) {
-    if (Math.abs(y - cizgi.y1) < esikMesafe) {
-      donus.y = cizgi.y1;
-      break;
-    }
-
-    if (Math.abs(y - cizgi.y2) < esikMesafe) {
-      donus.y = cizgi.y2;
-      break;
-    }
+export function aciyaKilitle(
+  baslangicX,
+  baslangicY,
+  hedefX,
+  hedefY,
+  serbestMi,
+) {
+  if (serbestMi) {
+    return { x: hedefX, y: hedefY };
   }
 
-  for (const cizgi of cizgiler) {
-    if (Math.abs(x - cizgi.x1) < esikMesafe) {
-      donus.x = cizgi.x1;
-      break;
-    }
+  const dx = hedefX - baslangicX;
+  const dy = hedefY - baslangicY;
+  const uzunluk = Math.hypot(dx, dy);
 
-    if (Math.abs(x - cizgi.x2) < esikMesafe) {
-      donus.x = cizgi.x2;
-      break;
-    }
+  if (uzunluk === 0) {
+    return { x: hedefX, y: hedefY };
   }
 
-  return donus;
+  const aciDerece = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+  const kilitliAciDerece =
+    Math.round(aciDerece / ACI_KILIT_ADIMI_DERECE) *
+    ACI_KILIT_ADIMI_DERECE;
+
+  const kilitliAciRadyan =
+    (kilitliAciDerece * Math.PI) / 180;
+
+  return {
+    x: baslangicX + Math.cos(kilitliAciRadyan) * uzunluk,
+    y: baslangicY + Math.sin(kilitliAciRadyan) * uzunluk,
+  };
 }
 
 export function cizgiEslesiyorMu(cizgi, x1, y1, x2, y2) {

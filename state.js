@@ -12,6 +12,10 @@ export let seciliGrupId = null;
 
 export const SNAP_MESAFESI = 15;
 
+export let hoverGrupId = null;
+export let hoverCizgiId = null;   // YENİ: Üzerine gelinen tekil çizginin ID'si
+export let hoverKoseNoktasi = null; // YENİ: Üzerine gelinen köşenin koordinatı { x, y }
+
 export function setAktifMod(mod) {
   aktifMod = mod;
 }
@@ -47,7 +51,11 @@ export function setSeciliGrupId(grupId) {
 export let gridGorunur = true;
 export let gridSnapAktif = true;
 
-export const GRID_BOYUTU = 25;
+// 1 dünya birimi = 1 santimetre kabul edilir.
+// Yani 100 dünya birimi = 1 metre. Grid adımı ve çizgi
+// uzunluk etiketleri bu sabite göre hesaplanır.
+export const PIXEL_PER_METRE = 100;
+
 export const GRID_SNAP_EKRAN_MESAFESI = 10;
 
 export function setGridGorunur(deger) {
@@ -64,4 +72,20 @@ export function setSeciliGrupIdleri(grupIdleri) {
   seciliGrupIdleri = [
     ...new Set(grupIdleri.filter(Boolean)),
   ];
+}
+
+
+export function setHoverGrupId(grupId) {
+  hoverGrupId = grupId;
+}
+
+
+// YENİ: Tekil çizgi hover setter'ı
+export function setHoverCizgiId(cizgiId) {
+  hoverCizgiId = cizgiId;
+}
+
+// YENİ: Köşe hover setter'ı
+export function setHoverKoseNoktasi(nokta) {
+  hoverKoseNoktasi = nokta;
 }

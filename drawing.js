@@ -16,13 +16,36 @@ import {
 
 import {
   hesaplaSnap,
-  hesaplaHizalama,
+  aciyaKilitle,
 } from "./snap.js";
 
 import { sahnedenDunyaya } from "./camera.js";
 import { odalariYenidenHesapla } from "./rooms.js";
 import { ekraniGuncelle } from "./render.js";
 import { cizgiEkle } from "./history.js";
+
+// Shift basılıyken çizgi açısı serbest kalır (0/45/90/135
+// derecelere kilitlenmez). Basılı değilken varsayılan olarak
+// en yakın 45 derecelik açıya otomatik yapışır.
+let shiftBasili = false;
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Shift") {
+    shiftBasili = true;
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  if (event.key === "Shift") {
+    shiftBasili = false;
+  }
+});
+
+// Pencere odağını kaybedersek (örneğin Shift'e basılıyken
+// başka sekmeye geçilirse) tuş takılı kalmasın.
+window.addEventListener("blur", () => {
+  shiftBasili = false;
+});
 
 // ESC : mevcut çizimi iptal et
 window.addEventListener("keydown", (event) => {
@@ -112,16 +135,20 @@ function cizgiModundaTiklama(snap,nesneyeMiknatislandiMi) {
     return;
   }
 
-  const finalNokta = hesaplaHizalama(snap.x, snap.y);
+  // Shift basılı değilse açı en yakın 45°'nin katına kilitlenir,
+  // Shift basılıyken çizgi tamamen serbest açıda çizilebilir.
+  const kilitliNokta = aciyaKilitle(
+    mevcutCizim.x1,
+    mevcutCizim.y1,
+    snap.x,
+    snap.y,
+    shiftBasili,
+  );
 
-  const dx = Math.abs(finalNokta.x - mevcutCizim.x1);
-  const dy = Math.abs(finalNokta.y - mevcutCizim.y1);
-
-  if (dx > dy) {
-    finalNokta.y = mevcutCizim.y1;
-  } else {
-    finalNokta.x = mevcutCizim.x1;
-  }
+  const finalNokta = {
+    x: Math.round(kilitliNokta.x),
+    y: Math.round(kilitliNokta.y),
+  };
 
   const cizgiBosDegil =
     mevcutCizim.x1 !== finalNokta.x ||
@@ -210,18 +237,16 @@ function kutuModundaTiklama(snap) {
 }
 
 function cizgiOnizlemesiniGuncelle(snap) {
-  const hizali = hesaplaHizalama(snap.x, snap.y);
+  const kilitliNokta = aciyaKilitle(
+    mevcutCizim.x1,
+    mevcutCizim.y1,
+    snap.x,
+    snap.y,
+    shiftBasili,
+  );
 
-  const dx = Math.abs(hizali.x - mevcutCizim.x1);
-  const dy = Math.abs(hizali.y - mevcutCizim.y1);
-
-  if (dx > dy) {
-    mevcutCizim.x2 = hizali.x;
-    mevcutCizim.y2 = mevcutCizim.y1;
-  } else {
-    mevcutCizim.x2 = mevcutCizim.x1;
-    mevcutCizim.y2 = hizali.y;
-  }
+  mevcutCizim.x2 = Math.round(kilitliNokta.x);
+  mevcutCizim.y2 = Math.round(kilitliNokta.y);
 
   onizlemeKatmani.graphics
   .beginStroke("#710ee946")

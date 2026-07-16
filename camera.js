@@ -5,9 +5,10 @@ import {
 } from "./stage.js";
 
 import { gridiCiz } from "./grid.js";
+import { ekraniGuncelle } from "./render.js";
 
-const MIN_ZOOM = 0.4;
-const MAX_ZOOM = 3;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 6;
 const ZOOM_ADIMI = 1.15;
 
 let sagTuslaGeziliyor = false;
@@ -63,6 +64,11 @@ export function zoomYap(
     merkezY - zoomSonrasiNokta.y;
 
   gridiCiz();
+
+  // Uzunluk etiketlerinin ekranda hep aynı boyutta görünmesi
+  // için ölçeklerini yeni zoom seviyesine göre yeniden hesapla.
+  ekraniGuncelle();
+
   stage.update();
   zoomBilgisiniGuncelle();
 }
@@ -86,6 +92,7 @@ export function zoomSifirla() {
   viewport.y = 0;
 
   gridiCiz();
+  ekraniGuncelle();
   stage.update();
   zoomBilgisiniGuncelle();
 }

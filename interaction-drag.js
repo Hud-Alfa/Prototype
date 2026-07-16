@@ -1,7 +1,11 @@
-import { cizgiler, setSeciliGrupId } from "./state.js";
+import { 
+  cizgiler, 
+  setSeciliGrupId,
+  setHoverKoseNoktasi
+} from "./state.js";
 import { canvas, viewport } from "./stage.js";
-import { hesaplaGrupTasimaSnap } from "./snap.js";
-import { gecmiseKaydet } from "./history.js";
+import { hesaplaGrupTasimaSnap, hesaplaSnap } from "./snap.js";
+import { gecmiseKaydet, dinamikBolmeUygula } from "./history.js"; // dinamikBolmeUygula eklendi
 import { odalariYenidenHesapla } from "./rooms.js";
 import { ekraniGuncelle } from "./render.js";
 import { silButonunuKonumlandir } from "./interaction-delete-button.js";
@@ -14,18 +18,23 @@ let suruklemeAktif = false;
 let hareketGerceklesti = false;
 let gecmiseKaydedildi = false;
 
+let suruklemeTuru = "GROUP"; 
+
 let suruklemeBaslangicX = 0;
 let suruklemeBaslangicY = 0;
-
 let orijinalTumCizgiler = [];
 let orijinalGrupCizgileri = [];
 let orijinalSuruklenenGrupIdleri = [];
+
+let suruklenenKoseNoktasi = null;
+let bagliCizgiReferanslari = [];
 
 export function suruklemeAktifMi() {
   return suruklemeAktif;
 }
 
 function suruklemeyiBaslat(dunyaNoktasi, grupIdleri) {
+  suruklemeTuru = "GROUP";
   suruklemeAktif = true;
   hareketGerceklesti = false;
   gecmiseKaydedildi = false;
@@ -42,27 +51,38 @@ function suruklemeyiBaslat(dunyaNoktasi, grupIdleri) {
   );
 
   canvas.style.cursor = "grabbing";
-
   ekraniGuncelle();
   silButonunuKonumlandir();
 }
 
-/**
- * Bir çizgiye/odaya tıklanınca ilgili grubu seçer ve
- * sürüklemeye hazırlar. Tıklanan grup zaten mevcut çoklu
- * seçimin bir parçasıysa, seçimi bozmadan hepsini birlikte
- * sürüklemeye başlar.
- */
-export function grupSecVeSuruklemeyeHazirla(
-  grupId,
-  dunyaNoktasi,
-) {
+export function koseSuruklemeyeHazirla(koseNoktasi) {
+  suruklemeTuru = "CORNER";
+  suruklemeAktif = true;
+  hareketGerceklesti = false;
+  gecmiseKaydedildi = false;
+  
+  suruklenenKoseNoktasi = { ...koseNoktasi };
+  orijinalTumCizgiler = structuredClone(cizgiler);
+  bagliCizgiReferanslari = [];
+
+  const TOLERANS = 1e-3;
+  cizgiler.forEach((cizgi) => {
+    if (Math.hypot(cizgi.x1 - koseNoktasi.x, cizgi.y1 - koseNoktasi.y) < TOLERANS) {
+      bagliCizgiReferanslari.push({ id: cizgi.id, uc: "v1" });
+    }
+    if (Math.hypot(cizgi.x2 - koseNoktasi.x, cizgi.y2 - koseNoktasi.y) < TOLERANS) {
+      bagliCizgiReferanslari.push({ id: cizgi.id, uc: "v2" });
+    }
+  });
+
+  canvas.style.cursor = "grabbing";
+  ekraniGuncelle();
+}
+
+export function grupSecVeSuruklemeyeHazirla(grupId, dunyaNoktasi) {
   const mevcutSecim = aktifSeciliGrupIdleri();
 
-  if (
-    mevcutSecim.includes(grupId) &&
-    mevcutSecim.length > 1
-  ) {
+  if (mevcutSecim.includes(grupId) && mevcutSecim.length > 1) {
     suruklemeyiBaslat(dunyaNoktasi, mevcutSecim);
     return;
   }
@@ -71,53 +91,63 @@ export function grupSecVeSuruklemeyeHazirla(
   suruklemeyiBaslat(dunyaNoktasi, [grupId]);
 }
 
-/**
- * Sol tuş basılıyken seçili grubu/grupları taşır.
- * Sürükleme aktif değilse hiçbir şey yapmaz.
- */
 export function suruklemeyiTasi(dunyaNoktasi) {
   if (!suruklemeAktif) return;
-  if (orijinalGrupCizgileri.length === 0) return;
 
-  const hamDx = dunyaNoktasi.x - suruklemeBaslangicX;
-  const hamDy = dunyaNoktasi.y - suruklemeBaslangicY;
-
-  // Çok küçük mouse hareketlerini sürükleme olarak sayma.
-  const ekranHareketi = Math.hypot(
-    hamDx * viewport.scaleX,
-    hamDy * viewport.scaleY,
-  );
-
-  if (ekranHareketi < 2) return;
-
-  hareketGerceklesti = true;
-
-  // Taşıma işlemini geçmişe yalnızca bir kez kaydet.
   if (!gecmiseKaydedildi) {
     gecmiseKaydet(orijinalTumCizgiler);
     gecmiseKaydedildi = true;
   }
 
-  // Taşınan grubun köşe ve kenarlarını diğer
-  // şekillere mıknatısla.
-  const snapSonucu = hesaplaGrupTasimaSnap(
-    orijinalGrupCizgileri,
-    hamDx,
-    hamDy,
-    orijinalSuruklenenGrupIdleri,
-  );
+  if (suruklemeTuru === "GROUP") {
+    if (orijinalGrupCizgileri.length === 0) return;
 
-  for (const orijinalCizgi of orijinalGrupCizgileri) {
-    const mevcutCizgi = cizgiler.find(
-      (cizgi) => cizgi.id === orijinalCizgi.id,
+    const hamDx = dunyaNoktasi.x - suruklemeBaslangicX;
+    const hamDy = dunyaNoktasi.y - suruklemeBaslangicY;
+
+    const ekranHareketi = Math.hypot(hamDx * viewport.scaleX, hamDy * viewport.scaleY);
+    if (ekranHareketi < 2) return;
+
+    hareketGerceklesti = true;
+
+    const snapSonucu = hesaplaGrupTasimaSnap(
+      orijinalGrupCizgileri,
+      hamDx,
+      hamDy,
+      orijinalSuruklenenGrupIdleri,
     );
 
-    if (!mevcutCizgi) continue;
+    for (const orijinalCizgi of orijinalGrupCizgileri) {
+      const mevcutCizgi = cizgiler.find((cizgi) => cizgi.id === orijinalCizgi.id);
+      if (!mevcutCizgi) continue;
 
-    mevcutCizgi.x1 = orijinalCizgi.x1 + snapSonucu.dx;
-    mevcutCizgi.y1 = orijinalCizgi.y1 + snapSonucu.dy;
-    mevcutCizgi.x2 = orijinalCizgi.x2 + snapSonucu.dx;
-    mevcutCizgi.y2 = orijinalCizgi.y2 + snapSonucu.dy;
+      mevcutCizgi.x1 = orijinalCizgi.x1 + snapSonucu.dx;
+      mevcutCizgi.y1 = orijinalCizgi.y1 + snapSonucu.dy;
+      mevcutCizgi.x2 = orijinalCizgi.x2 + snapSonucu.dx;
+      mevcutCizgi.y2 = orijinalCizgi.y2 + snapSonucu.dy;
+    }
+  } 
+  else if (suruklemeTuru === "CORNER") {
+    if (bagliCizgiReferanslari.length === 0) return;
+    
+    hareketGerceklesti = true;
+
+    const snapSonucu = hesaplaSnap(dunyaNoktasi.x, dunyaNoktasi.y);
+
+    setHoverKoseNoktasi({ x: snapSonucu.x, y: snapSonucu.y });
+
+    bagliCizgiReferanslari.forEach((ref) => {
+      const mevcutCizgi = cizgiler.find((c) => c.id === ref.id);
+      if (!mevcutCizgi) return;
+
+      if (ref.uc === "v1") {
+        mevcutCizgi.x1 = snapSonucu.x;
+        mevcutCizgi.y1 = snapSonucu.y;
+      } else {
+        mevcutCizgi.x2 = snapSonucu.x;
+        mevcutCizgi.y2 = snapSonucu.y;
+      }
+    });
   }
 
   odalariYenidenHesapla();
@@ -125,19 +155,22 @@ export function suruklemeyiTasi(dunyaNoktasi) {
   silButonunuKonumlandir();
 }
 
-/**
- * Mouse bırakıldığında (veya canvas dışına çıkıldığında)
- * taşıma işlemini bitirir. Sürükleme aktif değilse
- * hiçbir şey yapmaz.
- */
 export function suruklemeyiBitir() {
   if (!suruklemeAktif) return;
 
   suruklemeAktif = false;
+  canvas.style.cursor = hareketGerceklesti ? "default" : "pointer";
 
-  canvas.style.cursor = hareketGerceklesti
-    ? "default"
-    : "pointer";
+  suruklenenKoseNoktasi = null;
+  bagliCizgiReferanslari = [];
+  setHoverKoseNoktasi(null);
 
+  // Sürükleme bittiğinde, sahnedeki kesişen tüm çizgileri otomatik olarak böl ve birleştir!
+  if (hareketGerceklesti) {
+    dinamikBolmeUygula();
+  }
+
+  odalariYenidenHesapla();
+  ekraniGuncelle();
   silButonunuKonumlandir();
 }
