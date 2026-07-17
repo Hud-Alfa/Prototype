@@ -29,7 +29,8 @@ export function setCizgiler(yeniCizgiler) {
 }
 
 export function setOdalar(yeniOdalar) {
-  odalar = yeniOdalar;
+  odalar.length = 0;
+  odalar.push(...yeniOdalar);
 }
 
 export function setRedoStack(yeniRedoStack) {

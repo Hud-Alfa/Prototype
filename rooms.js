@@ -5,6 +5,7 @@ import {
 
 import {
   poligonSinirlari,
+  noktaPoligonIcinde,
 } from "./geometry.js";
 
 const NOKTA_HASSASIYETI = 3;
@@ -49,32 +50,58 @@ function isaretliPoligonAlani(noktalar) {
 }
 
 function poligonImzasi(noktalar) {
-  const anahtarlar =
-    noktalar.map((nokta) =>
-      koordinatAnahtari(
-        nokta.x,
-        nokta.y,
-      ),
-    );
+  const anahtarlar = noktalar.map((nokta) =>
+    koordinatAnahtari(
+      nokta.x,
+      nokta.y,
+    ),
+  );
 
-  const adaylar = [];
+  const duzAdaylar = [];
+  const tersAdaylar = [];
+
+  const tersAnahtarlar =
+    [...anahtarlar].reverse();
 
   for (
     let i = 0;
     i < anahtarlar.length;
     i += 1
   ) {
-    adaylar.push(
+    duzAdaylar.push(
       [
         ...anahtarlar.slice(i),
         ...anahtarlar.slice(0, i),
       ].join("|"),
     );
+
+    tersAdaylar.push(
+      [
+        ...tersAnahtarlar.slice(i),
+        ...tersAnahtarlar.slice(0, i),
+      ].join("|"),
+    );
   }
 
-  adaylar.sort();
+  return [
+    ...duzAdaylar,
+    ...tersAdaylar,
+  ].sort()[0];
+}
 
-  return adaylar[0];
+function poligonMerkezi(noktalar) {
+  const toplam = noktalar.reduce(
+    (sonuc, nokta) => ({
+      x: sonuc.x + nokta.x,
+      y: sonuc.y + nokta.y,
+    }),
+    { x: 0, y: 0 },
+  );
+
+  return {
+    x: toplam.x / noktalar.length,
+    y: toplam.y / noktalar.length,
+  };
 }
 
 function komsulariSirala(kavsak) {
@@ -376,6 +403,94 @@ function yuzleriBul(kavsaklar) {
   return bulunanYuzler;
 }
 
+function odaNesnesiOlustur(
+  noktalar,
+  alan,
+) {
+  const sinirlar =
+    poligonSinirlari(noktalar);
+
+  return {
+    id: crypto.randomUUID(),
+    groupId: crypto.randomUUID(),
+
+    noktalar: noktalar.map((nokta) => ({
+      x: Number(nokta.x),
+      y: Number(nokta.y),
+    })),
+
+    alan: Number(alan),
+
+    minX: sinirlar.minX,
+    minY: sinirlar.minY,
+    maxX: sinirlar.maxX,
+    maxY: sinirlar.maxY,
+
+    genislik:
+      sinirlar.maxX - sinirlar.minX,
+
+    yukseklik:
+      sinirlar.maxY - sinirlar.minY,
+  };
+}
+
+function kapsayiciOdalariEle(odalar) {
+  return odalar.filter((adayOda) => {
+    const icindekiOdalar =
+      odalar.filter((digerOda) => {
+        if (adayOda === digerOda) {
+          return false;
+        }
+
+        if (
+          digerOda.alan >= adayOda.alan
+        ) {
+          return false;
+        }
+
+        const merkez =
+          poligonMerkezi(
+            digerOda.noktalar,
+          );
+
+        return noktaPoligonIcinde(
+          merkez.x,
+          merkez.y,
+          adayOda.noktalar,
+        );
+      });
+
+    if (icindekiOdalar.length < 2) {
+      return true;
+    }
+
+    const icAlanToplami =
+      icindekiOdalar.reduce(
+        (toplam, oda) =>
+          toplam + oda.alan,
+        0,
+      );
+
+    const alanFarki =
+      Math.abs(
+        adayOda.alan -
+        icAlanToplami,
+      );
+
+    const tolerans =
+      Math.max(
+        1,
+        adayOda.alan * 0.001,
+      );
+
+    /*
+     * Aday oda, içindeki küçük odaların
+     * birleşiminden oluşuyorsa onu ele.
+     */
+    return alanFarki > tolerans;
+  });
+}
+
 export function odalariYenidenHesapla() {
   if (
     !Array.isArray(cizgiler) ||
@@ -391,21 +506,34 @@ export function odalariYenidenHesapla() {
   const yuzler =
     yuzleriBul(kavsaklar);
 
-  const yeniOdalar =
-    yuzler.map((yuz) => {
-      const sinirlar =
-        poligonSinirlari(
-          yuz.noktalar,
-        );
+  const bulunanOdalar =
+    yuzler.map((yuz) =>
+      odaNesnesiOlustur(
+        yuz.noktalar,
+        yuz.alan,
+      ),
+    );
 
-      return {
-        id: crypto.randomUUID(),
-        groupId: crypto.randomUUID(),
-        noktalar: yuz.noktalar,
-        alan: yuz.alan,
-        ...sinirlar,
-      };
-    });
+  const yeniOdalar =
+    kapsayiciOdalariEle(
+      bulunanOdalar,
+    );
+
+  console.table(
+    yeniOdalar.map(
+      (oda, indeks) => ({
+        indeks,
+        id: oda.id,
+        alan: oda.alan,
+        noktaSayisi:
+          oda.noktalar.length,
+        minX: oda.minX,
+        minY: oda.minY,
+        maxX: oda.maxX,
+        maxY: oda.maxY,
+      }),
+    ),
+  );
 
   setOdalar(yeniOdalar);
 }
