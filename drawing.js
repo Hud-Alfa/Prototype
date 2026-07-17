@@ -19,6 +19,10 @@ import {
   aciyaKilitle,
 } from "./snap.js";
 
+import {
+  kesisimleriKoseyeDonustur,
+} from "./intersections.js";
+
 import { sahnedenDunyaya } from "./camera.js";
 import { odalariYenidenHesapla } from "./rooms.js";
 import { ekraniGuncelle } from "./render.js";
@@ -155,16 +159,18 @@ function cizgiModundaTiklama(snap,nesneyeMiknatislandiMi) {
     mevcutCizim.y1 !== finalNokta.y;
 
   if (cizgiBosDegil) {
-    cizgiEkle(
-      {
-        x1: mevcutCizim.x1,
-        y1: mevcutCizim.y1,
-        x2: finalNokta.x,
-        y2: finalNokta.y,
-      },
-      aktifCizimGrupId,
-    );
-  }
+  cizgiEkle(
+    {
+      x1: mevcutCizim.x1,
+      y1: mevcutCizim.y1,
+      x2: finalNokta.x,
+      y2: finalNokta.y,
+    },
+    aktifCizimGrupId,
+  );
+
+  kesisimleriKoseyeDonustur();
+}
 
   if (nesneyeMiknatislandiMi) {
   setMevcutCizim(null);
@@ -229,10 +235,13 @@ function kutuModundaTiklama(snap) {
     },
   ]);
 
+  kesisimleriKoseyeDonustur();
+
   setMevcutCizim(null);
   setAktifCizimGrupId(null);
 
   onizlemeKatmani.graphics.clear();
+  
   odalariYenidenHesapla();
 }
 
