@@ -1,131 +1,411 @@
 import {
   cizgiler,
   setOdalar,
-  mevcutCizim, // Çizim durumunu kontrol etmek için state'ten içe aktarıyoruz
 } from "./state.js";
 
 import {
-  poligonAlani,
   poligonSinirlari,
 } from "./geometry.js";
 
-/**
- * İki noktanın koordinat olarak birbirine eşleşip eşleşmediğini kontrol eder.
- */
-function noktalarEsitMi(p1, p2, tolerans = 1e-2) {
-  return Math.hypot(p1.x - p2.x, p1.y - p2.y) < tolerans;
+const NOKTA_HASSASIYETI = 3;
+const MINIMUM_ODA_ALANI = 10;
+
+function koordinatAnahtari(x, y) {
+  return `${Number(x).toFixed(
+    NOKTA_HASSASIYETI,
+  )},${Number(y).toFixed(
+    NOKTA_HASSASIYETI,
+  )}`;
 }
 
-/**
- * Sahnedeki tüm çizgileri tarar; gruplardan bağımsız olarak, 
- * geometrik olarak uç uca birleşip kapalı alan oluşturan her yeri oda olarak tanımlar.
- */
-export function odalariYenidenHesapla() {
-  // KRİTİK DÜZELTME 1: Eğer kullanıcı o an aktif olarak çizgi veya kutu çiziyorsa,
-  // oda hesaplamayı durdur ki üst üste binen gölgeler (koyulaşma) oluşmasın!
-  if (mevcutCizim !== null) {
-    return;
+function yonluKenarAnahtari(
+  baslangic,
+  bitis,
+) {
+  return `${baslangic.anahtar}->${bitis.anahtar}`;
+}
+
+function isaretliPoligonAlani(noktalar) {
+  let toplam = 0;
+
+  for (
+    let i = 0;
+    i < noktalar.length;
+    i += 1
+  ) {
+    const mevcut = noktalar[i];
+
+    const sonraki =
+      noktalar[
+        (i + 1) % noktalar.length
+      ];
+
+    toplam +=
+      mevcut.x * sonraki.y -
+      sonraki.x * mevcut.y;
   }
 
-  // SAHNENİN KİLİTLENMESİNİ ÖNLEYEN KORUMA:
-  if (!cizgiler || cizgiler.length < 3) {
+  return toplam / 2;
+}
+
+function poligonImzasi(noktalar) {
+  const anahtarlar =
+    noktalar.map((nokta) =>
+      koordinatAnahtari(
+        nokta.x,
+        nokta.y,
+      ),
+    );
+
+  const adaylar = [];
+
+  for (
+    let i = 0;
+    i < anahtarlar.length;
+    i += 1
+  ) {
+    adaylar.push(
+      [
+        ...anahtarlar.slice(i),
+        ...anahtarlar.slice(0, i),
+      ].join("|"),
+    );
+  }
+
+  adaylar.sort();
+
+  return adaylar[0];
+}
+
+function komsulariSirala(kavsak) {
+  kavsak.siraliKomsular = [
+    ...kavsak.komsular,
+  ].sort((a, b) => {
+    const aciA = Math.atan2(
+      a.y - kavsak.y,
+      a.x - kavsak.x,
+    );
+
+    const aciB = Math.atan2(
+      b.y - kavsak.y,
+      b.x - kavsak.x,
+    );
+
+    return aciA - aciB;
+  });
+}
+
+function sonrakiKavsagiBul(
+  onceki,
+  mevcut,
+) {
+  const komsular =
+    mevcut.siraliKomsular;
+
+  if (
+    !komsular ||
+    komsular.length < 2
+  ) {
+    return null;
+  }
+
+  const geriDonusIndeksi =
+    komsular.indexOf(onceki);
+
+  if (geriDonusIndeksi === -1) {
+    return null;
+  }
+
+  const sonrakiIndeks =
+    (
+      geriDonusIndeksi -
+      1 +
+      komsular.length
+    ) % komsular.length;
+
+  return komsular[sonrakiIndeks];
+}
+
+function grafiOlustur() {
+  const kavsakHaritasi =
+    new Map();
+
+  function kavsakGetirVeyaOlustur(
+    x,
+    y,
+  ) {
+    const anahtar =
+      koordinatAnahtari(x, y);
+
+    if (!kavsakHaritasi.has(anahtar)) {
+      kavsakHaritasi.set(
+        anahtar,
+        {
+          anahtar,
+          x: Number(x),
+          y: Number(y),
+          komsular: new Set(),
+          siraliKomsular: [],
+        },
+      );
+    }
+
+    return kavsakHaritasi.get(
+      anahtar,
+    );
+  }
+
+  for (const cizgi of cizgiler) {
+    if (!cizgi) {
+      continue;
+    }
+
+    const gecerliMi =
+      Number.isFinite(cizgi.x1) &&
+      Number.isFinite(cizgi.y1) &&
+      Number.isFinite(cizgi.x2) &&
+      Number.isFinite(cizgi.y2);
+
+    if (!gecerliMi) {
+      continue;
+    }
+
+    const baslangic =
+      kavsakGetirVeyaOlustur(
+        cizgi.x1,
+        cizgi.y1,
+      );
+
+    const bitis =
+      kavsakGetirVeyaOlustur(
+        cizgi.x2,
+        cizgi.y2,
+      );
+
+    if (baslangic === bitis) {
+      continue;
+    }
+
+    baslangic.komsular.add(bitis);
+    bitis.komsular.add(baslangic);
+  }
+
+  const kavsaklar = [
+    ...kavsakHaritasi.values(),
+  ];
+
+  for (const kavsak of kavsaklar) {
+    komsulariSirala(kavsak);
+  }
+
+  return kavsaklar;
+}
+
+function yuzuTakipEt(
+  baslangic,
+  ilkSonraki,
+  maksimumAdim,
+) {
+  const noktalar = [];
+  const kullanilanKenarlar = [];
+  const gorulenKenarlar =
+    new Set();
+
+  let onceki = baslangic;
+  let mevcut = ilkSonraki;
+
+  for (
+    let adim = 0;
+    adim < maksimumAdim;
+    adim += 1
+  ) {
+    const kenarAnahtari =
+      yonluKenarAnahtari(
+        onceki,
+        mevcut,
+      );
+
+    if (
+      gorulenKenarlar.has(
+        kenarAnahtari,
+      )
+    ) {
+      return null;
+    }
+
+    gorulenKenarlar.add(
+      kenarAnahtari,
+    );
+
+    kullanilanKenarlar.push(
+      kenarAnahtari,
+    );
+
+    noktalar.push({
+      x: onceki.x,
+      y: onceki.y,
+    });
+
+    const sonraki =
+      sonrakiKavsagiBul(
+        onceki,
+        mevcut,
+      );
+
+    if (!sonraki) {
+      return null;
+    }
+
+    onceki = mevcut;
+    mevcut = sonraki;
+
+    if (
+      onceki === baslangic &&
+      mevcut === ilkSonraki
+    ) {
+      return {
+        noktalar,
+        kullanilanKenarlar,
+      };
+    }
+  }
+
+  return null;
+}
+
+function yuzleriBul(kavsaklar) {
+  const ziyaretEdilenKenarlar =
+    new Set();
+
+  const bulunanImzalar =
+    new Set();
+
+  const bulunanYuzler = [];
+
+  const toplamKenarSayisi =
+    kavsaklar.reduce(
+      (toplam, kavsak) =>
+        toplam +
+        kavsak.komsular.size,
+      0,
+    );
+
+  const maksimumAdim =
+    toplamKenarSayisi + 5;
+
+  for (const baslangic of kavsaklar) {
+    for (
+      const ilkSonraki
+      of baslangic.siraliKomsular
+    ) {
+      const ilkKenarAnahtari =
+        yonluKenarAnahtari(
+          baslangic,
+          ilkSonraki,
+        );
+
+      if (
+        ziyaretEdilenKenarlar.has(
+          ilkKenarAnahtari,
+        )
+      ) {
+        continue;
+      }
+
+      const sonuc =
+        yuzuTakipEt(
+          baslangic,
+          ilkSonraki,
+          maksimumAdim,
+        );
+
+      if (!sonuc) {
+        ziyaretEdilenKenarlar.add(
+          ilkKenarAnahtari,
+        );
+
+        continue;
+      }
+
+      for (
+        const kullanilanKenar
+        of sonuc.kullanilanKenarlar
+      ) {
+        ziyaretEdilenKenarlar.add(
+          kullanilanKenar,
+        );
+      }
+
+      if (
+        sonuc.noktalar.length < 3
+      ) {
+        continue;
+      }
+
+      const alan =
+        isaretliPoligonAlani(
+          sonuc.noktalar,
+        );
+
+      if (
+        alan <= MINIMUM_ODA_ALANI
+      ) {
+        continue;
+      }
+
+      const imza =
+        poligonImzasi(
+          sonuc.noktalar,
+        );
+
+      if (
+        bulunanImzalar.has(imza)
+      ) {
+        continue;
+      }
+
+      bulunanImzalar.add(imza);
+
+      bulunanYuzler.push({
+        noktalar: sonuc.noktalar,
+        alan,
+      });
+    }
+  }
+
+  return bulunanYuzler;
+}
+
+export function odalariYenidenHesapla() {
+  if (
+    !Array.isArray(cizgiler) ||
+    cizgiler.length < 3
+  ) {
     setOdalar([]);
     return;
   }
 
-  const yeniOdalar = [];
-  const kavsaklar = [];
+  const kavsaklar =
+    grafiOlustur();
 
-  // 1. Tüm çizgilerin uç noktalarından benzersiz köşe listesi (kavşaklar) çıkar
-  cizgiler.forEach(c => {
-    if (!c) return;
-    const v1 = { x: Math.round(c.x1), y: Math.round(c.y1) };
-    const v2 = { x: Math.round(c.x2), y: Math.round(c.y2) };
-    if (!kavsaklar.some(k => noktalarEsitMi(k, v1))) kavsaklar.push(v1);
-    if (!kavsaklar.some(k => noktalarEsitMi(k, v2))) kavsaklar.push(v2);
-  });
+  const yuzler =
+    yuzleriBul(kavsaklar);
 
-  // 2. Her kavşağın komşularını haritalandır
-  const komsuluk = new Map();
-  kavsaklar.forEach(k => komsuluk.set(k, []));
+  const yeniOdalar =
+    yuzler.map((yuz) => {
+      const sinirlar =
+        poligonSinirlari(
+          yuz.noktalar,
+        );
 
-  cizgiler.forEach(c => {
-    if (!c) return;
-    const v1 = kavsaklar.find(k => noktalarEsitMi(k, { x: c.x1, y: c.y1 }));
-    const v2 = kavsaklar.find(k => noktalarEsitMi(k, { x: c.x2, y: c.y2 }));
-    if (v1 && v2 && v1 !== v2) {
-      if (!komsuluk.get(v1).includes(v2)) komsuluk.get(v1).push(v2);
-      if (!komsuluk.get(v2).includes(v1)) komsuluk.get(v2).push(v1);
-    }
-  });
-
-  const ziyaretEdilenYollar = new Set();
-
-  // 3. Her bir kavşaktan başlayarak kapalı alan (çevrim) tespiti yap
-  kavsaklar.forEach(baslangic => {
-    const komsular = komsuluk.get(baslangic) || [];
-    komsular.forEach(sonraki => {
-      const yolAnahtari = `${baslangic.x},${baslangic.y}->${sonraki.x},${sonraki.y}`;
-      const tersAnahtar = `${sonraki.x},${sonraki.y}->${baslangic.x},${baslangic.y}`;
-      
-      if (ziyaretEdilenYollar.has(yolAnahtari) || ziyaretEdilenYollar.has(tersAnahtar)) return;
-
-      const poligonNoktalari = [baslangic, sonraki];
-      let mevcut = sonraki;
-      let onceki = baslangic;
-      let basari = false;
-
-      for (let adim = 0; adim < 30; adim++) {
-        const adaylar = komsuluk.get(mevcut) || [];
-        if (adaylar.length < 2) break;
-
-        const angBase = Math.atan2(onceki.y - mevcut.y, onceki.x - mevcut.x);
-        let enIyiAday = null;
-        let enKucukAcı = Infinity;
-
-        adaylar.forEach(aday => {
-          if (noktalarEsitMi(aday, onceki)) return;
-          let diff = Math.atan2(aday.y - mevcut.y, aday.x - mevcut.x) - angBase;
-          if (diff <= 0) diff += 2 * Math.PI;
-          if (diff < enKucukAcı) {
-            enKucukAcı = diff;
-            enIyiAday = aday;
-          }
-        });
-
-        if (!enIyiAday) break;
-
-        if (noktalarEsitMi(enIyiAday, baslangic)) {
-          basari = true;
-          break;
-        }
-
-        poligonNoktalari.push(enIyiAday);
-        onceki = mevcut;
-        mevcut = enIyiAday;
-      }
-
-      if (basari && poligonNoktalari.length >= 3) {
-        for (let i = 0; i < poligonNoktalari.length; i++) {
-          const p1 = poligonNoktalari[i];
-          const p2 = poligonNoktalari[(i + 1) % poligonNoktalari.length];
-          ziyaretEdilenYollar.add(`${p1.x},${p1.y}->${p2.x},${p2.y}`);
-        }
-
-        const alan = poligonAlani(poligonNoktalari);
-        if (alan > 10) { 
-          const sinirlar = poligonSinirlari(poligonNoktalari);
-          yeniOdalar.push({
-            id: crypto.randomUUID(),
-            groupId: crypto.randomUUID(),
-            noktalar: poligonNoktalari,
-            alan: alan,
-            ...sinirlar
-          });
-        }
-      }
+      return {
+        id: crypto.randomUUID(),
+        groupId: crypto.randomUUID(),
+        noktalar: yuz.noktalar,
+        alan: yuz.alan,
+        ...sinirlar,
+      };
     });
-  });
 
   setOdalar(yeniOdalar);
 }
