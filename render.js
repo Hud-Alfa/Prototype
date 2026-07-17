@@ -15,8 +15,10 @@ import {
   odaKatmani,
   cizgiKatmani,
   etiketKatmani,
+  odaEtiketKatmani,
 } from "./stage.js";
 
+const BIR_METRE = 100;
 const ETIKET_EKRAN_OFSETI = 14;
 const MIN_ETIKET_UZUNLUGU_METRE = 0.2;
 
@@ -52,22 +54,53 @@ function uzunlukEtiketiOlustur(cizgi, renk) {
 export function ekraniGuncelle() {
   odaKatmani.graphics.clear();
   cizgiKatmani.graphics.clear();
+  odaEtiketKatmani.removeAllChildren();
   etiketKatmani.removeAllChildren();
 
   // 1. ODALARI ÇİZ
   odalar.forEach((oda) => {
-    if (!oda.noktalar || oda.noktalar.length < 3) return;
-    const ilkNokta = oda.noktalar[0];
-    odaKatmani.graphics
-      .beginFill("rgba(91, 14, 233, 0.15)")
-      .moveTo(ilkNokta.x, ilkNokta.y);
+  if (
+    !oda.noktalar ||
+    oda.noktalar.length < 3
+  ) {
+    return;
+  }
 
-    for (let i = 1; i < oda.noktalar.length; i += 1) {
-      const nokta = oda.noktalar[i];
-      odaKatmani.graphics.lineTo(nokta.x, nokta.y);
-    }
-    odaKatmani.graphics.lineTo(ilkNokta.x, ilkNokta.y).endFill();
-  });
+  const ilkNokta =
+    oda.noktalar[0];
+
+  odaKatmani.graphics
+    .beginFill(
+      "rgba(91, 14, 233, 0.15)",
+    )
+    .moveTo(
+      ilkNokta.x,
+      ilkNokta.y,
+    );
+
+  for (
+    let i = 1;
+    i < oda.noktalar.length;
+    i += 1
+  ) {
+    const nokta =
+      oda.noktalar[i];
+
+    odaKatmani.graphics.lineTo(
+      nokta.x,
+      nokta.y,
+    );
+  }
+
+  odaKatmani.graphics
+    .lineTo(
+      ilkNokta.x,
+      ilkNokta.y,
+    )
+    .endFill();
+
+  odaEtiketiniEkle(oda);
+});
 
   // 2. ÇİZGİLERİ ÇİZ (DÜZELTİLDİ: Sadece tıklanan tek çizgi kırmızı olur)
   cizgiler.forEach((cizgi) => {
@@ -125,4 +158,156 @@ export function ekraniGuncelle() {
   });
 
   stage.update();
+}
+
+function poligonMerkeziniHesapla(noktalar) {
+  if (
+    !Array.isArray(noktalar) ||
+    noktalar.length < 3
+  ) {
+    return null;
+  }
+
+  let alanToplami = 0;
+  let merkezXToplami = 0;
+  let merkezYToplami = 0;
+
+  for (
+    let i = 0;
+    i < noktalar.length;
+    i += 1
+  ) {
+    const mevcut = noktalar[i];
+    const sonraki =
+      noktalar[
+        (i + 1) % noktalar.length
+      ];
+
+    const carpim =
+      mevcut.x * sonraki.y -
+      sonraki.x * mevcut.y;
+
+    alanToplami += carpim;
+
+    merkezXToplami +=
+      (mevcut.x + sonraki.x) *
+      carpim;
+
+    merkezYToplami +=
+      (mevcut.y + sonraki.y) *
+      carpim;
+  }
+
+  const isaretliAlan =
+    alanToplami / 2;
+
+  /*
+   * Çok küçük veya bozuk poligonlarda
+   * köşelerin ortalamasına düş.
+   */
+  if (
+    Math.abs(isaretliAlan) <
+    0.000001
+  ) {
+    const toplam = noktalar.reduce(
+      (sonuc, nokta) => ({
+        x: sonuc.x + nokta.x,
+        y: sonuc.y + nokta.y,
+      }),
+      { x: 0, y: 0 },
+    );
+
+    return {
+      x: toplam.x / noktalar.length,
+      y: toplam.y / noktalar.length,
+    };
+  }
+
+  return {
+    x:
+      merkezXToplami /
+      (6 * isaretliAlan),
+
+    y:
+      merkezYToplami /
+      (6 * isaretliAlan),
+  };
+}
+
+function odaEtiketiniEkle(oda) {
+  const merkez =
+    poligonMerkeziniHesapla(
+      oda.noktalar,
+    );
+
+  if (!merkez) {
+    return;
+  }
+
+  const alanMetrekare =
+    Math.abs(oda.alan) /
+    (BIR_METRE * BIR_METRE);
+
+  const kapsayici =
+    new createjs.Container();
+
+  /*
+   * Başlık
+   */
+  const baslik =
+    new createjs.Text(
+      "ODA",
+      "bold 14px Arial",
+      "#4c1d95",
+    );
+
+  baslik.textAlign = "center";
+  baslik.textBaseline = "middle";
+  baslik.y = -9;
+
+  /*
+   * Alan bilgisi
+   */
+  const alanMetni =
+    new createjs.Text(
+      `${alanMetrekare.toFixed(2)} m²`,
+      "12px Arial",
+      "#6b7280",
+    );
+
+  alanMetni.textAlign = "center";
+  alanMetni.textBaseline = "middle";
+  alanMetni.y = 9;
+
+  /*
+   * Yazının arkasındaki soft beyaz alan
+   */
+  const arkaPlan =
+    new createjs.Shape();
+
+  arkaPlan.graphics
+    .beginFill(
+      "rgba(255, 255, 255, 0.82)",
+    )
+    .drawRoundRect(
+      -36,
+      -22,
+      72,
+      44,
+      8,
+    )
+    .endFill();
+
+  kapsayici.addChild(
+    arkaPlan,
+    baslik,
+    alanMetni,
+  );
+
+  kapsayici.x = merkez.x;
+  kapsayici.y = merkez.y;
+
+  odaEtiketKatmani.addChild(
+    kapsayici,
+  );
 }
