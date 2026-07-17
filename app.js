@@ -7,6 +7,7 @@ import "./rooms.js";
 import "./snap.js";
 import "./interaction.js";
 import "./camera.js";
+import "./export.js";
 
 
 import {
