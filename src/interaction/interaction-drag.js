@@ -340,8 +340,21 @@ function cizgiyiTasi(dunyaNoktasi) {
     orijinalTasinanCizgi.y1 +
     hamDy;
 
+  /*
+   * Taşınan çizgi ve ona bağlı komşu uçlar da bu karede
+   * hareket ettiğinden, kendi bir önceki konumlarına
+   * "yapışıp" hareketin donuk/kare kare ilerlemesine
+   * sebep olmasınlar diye snap adaylarından çıkarılır.
+   */
+  const haricTutulacakIdler = [
+    guncelCizgi.id,
+    ...bagliKomsuUclar.map(
+      (baglanti) => baglanti.cizgiId,
+    ),
+  ];
+
   const snapSonucu =
-    hesaplaSnap(hamX, hamY);
+    hesaplaSnap(hamX, hamY, haricTutulacakIdler);
 
   const dx =
     snapSonucu.x -
@@ -377,10 +390,21 @@ function koseyiTasi(dunyaNoktasi) {
     return;
   }
 
+  /*
+   * Köşeye bağlı, bu karede birlikte hareket eden bütün
+   * çizgiler kendi eski konumlarına yapışıp sürüklemeyi
+   * kare kare/donuk hale getirmesin diye hariç tutulur.
+   */
+  const haricTutulacakIdler =
+    bagliCizgiReferanslari.map(
+      (referans) => referans.id,
+    );
+
   const snapSonucu =
     hesaplaSnap(
       dunyaNoktasi.x,
       dunyaNoktasi.y,
+      haricTutulacakIdler,
     );
 
   setHoverKoseNoktasi({

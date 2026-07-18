@@ -34,7 +34,7 @@ export function cizgiUzerindeEnYakinNokta(x, y, x1, y1, x2, y2) {
   return { x: xx, y: yy, mesafe: mesafeBul(x, y, xx, yy) };
 }
 
-export function hesaplaSnap(mouseX, mouseY) {
+export function hesaplaSnap(mouseX, mouseY, haricTutulacakIdler = []) {
   let enYakinNokta = {
     x: Math.round(mouseX),
     y: Math.round(mouseY),
@@ -44,8 +44,22 @@ export function hesaplaSnap(mouseX, mouseY) {
   let enKisaMesafe =
     SNAP_MESAFESI / viewport.scaleX;
 
+  /*
+   * Şu an sürüklenmekte olan çizgi(ler) kendi eski karesine
+   * "yapışıp" hareketin kare kare/donarak ilerlemesine yol
+   * açmasın diye snap adaylarından hariç tutulur.
+   */
+  const haricSet = new Set(haricTutulacakIdler);
+
+  const snapAdayiCizgiler =
+    haricSet.size === 0
+      ? cizgiler
+      : cizgiler.filter(
+          (cizgi) => !haricSet.has(cizgi.id),
+        );
+
   // Önce mevcut çizgilerin köşeleri
-  for (const cizgi of cizgiler) {
+  for (const cizgi of snapAdayiCizgiler) {
     const d1 = mesafeBul(
       mouseX,
       mouseY,
@@ -83,7 +97,7 @@ export function hesaplaSnap(mouseX, mouseY) {
 
   // Köşe bulunamadıysa çizgi kenarları
   if (enYakinNokta.snapTuru === "NONE") {
-    for (const cizgi of cizgiler) {
+    for (const cizgi of snapAdayiCizgiler) {
       const sonuc =
         cizgiUzerindeEnYakinNokta(
           mouseX,
