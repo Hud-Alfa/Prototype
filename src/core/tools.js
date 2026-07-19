@@ -7,6 +7,7 @@ import {
 import {
   stage,
   onizlemeKatmani,
+  hizalamaKatmani,
   secimKatmani,
 } from "./stage.js";
 
@@ -32,6 +33,7 @@ export function modDegistir(yeniMod) {
   hoverTemizle();
 
   onizlemeKatmani.graphics.clear();
+  hizalamaKatmani.graphics.clear();
 
   if (yeniMod !== "SELECT") {
     secimiTemizle();

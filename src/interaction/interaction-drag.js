@@ -279,12 +279,37 @@ function cizgileriTasi(dunyaNoktasi) {
   const hamDy =
     dunyaNoktasi.y - suruklemeBaslangicY;
 
-  const snapSonucu = hesaplaCizgiTasimaSnap(
-    orijinalTasinanCizgiler,
-    hamDx,
-    hamDy,
-    tasinanCizgiIdleri,
-  );
+  const hamX =
+    orijinalTasinanCizgi.x1 +
+    hamDx;
+
+  const hamY =
+    orijinalTasinanCizgi.y1 +
+    hamDy;
+
+  /*
+   * Taşınan çizgi ve ona bağlı komşu uçlar da bu karede
+   * hareket ettiğinden, kendi bir önceki konumlarına
+   * "yapışıp" hareketin donuk/kare kare ilerlemesine
+   * sebep olmasınlar diye snap adaylarından çıkarılır.
+   */
+  const haricTutulacakIdler = [
+    guncelCizgi.id,
+    ...bagliKomsuUclar.map(
+      (baglanti) => baglanti.cizgiId,
+    ),
+  ];
+
+  const snapSonucu =
+    hesaplaSnap(hamX, hamY, haricTutulacakIdler);
+
+  const dx =
+    snapSonucu.x -
+    orijinalTasinanCizgi.x1;
+
+  const dy =
+    snapSonucu.y -
+    orijinalTasinanCizgi.y1;
 
   const orijinalHarita = new Map(
     orijinalTasinanCizgiler.map(
@@ -309,10 +334,22 @@ function cizgileriTasi(dunyaNoktasi) {
 function koseyiTasi(dunyaNoktasi) {
   if (bagliCizgiReferanslari.length === 0) return;
 
-  const snapSonucu = hesaplaSnap(
-    dunyaNoktasi.x,
-    dunyaNoktasi.y,
-  );
+  /*
+   * Köşeye bağlı, bu karede birlikte hareket eden bütün
+   * çizgiler kendi eski konumlarına yapışıp sürüklemeyi
+   * kare kare/donuk hale getirmesin diye hariç tutulur.
+   */
+  const haricTutulacakIdler =
+    bagliCizgiReferanslari.map(
+      (referans) => referans.id,
+    );
+
+  const snapSonucu =
+    hesaplaSnap(
+      dunyaNoktasi.x,
+      dunyaNoktasi.y,
+      haricTutulacakIdler,
+    );
 
   setHoverKoseNoktasi({
     x: snapSonucu.x,
