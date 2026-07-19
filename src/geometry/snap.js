@@ -12,29 +12,62 @@ export function mesafeBul(x1, y1, x2, y2) {
   return Math.hypot(x2 - x1, y2 - y1);
 }
 
-export function cizgiUzerindeEnYakinNokta(x, y, x1, y1, x2, y2) {
-  const A = x - x1;
-  const B = y - y1;
-  const C = x2 - x1;
-  const D = y2 - y1;
-  const dot = A * C + B * D;
-  const lenSq = C * C + D * D;
-  const param = lenSq !== 0 ? dot / lenSq : -1;
-  let xx, yy;
-  if (param < 0) {
-    xx = x1;
-    yy = y1;
-  } else if (param > 1) {
-    xx = x2;
-    yy = y2;
-  } else {
-    xx = x1 + param * C;
-    yy = y1 + param * D;
+export function cizgiUzerindeEnYakinNokta(
+  x,
+  y,
+  x1,
+  y1,
+  x2,
+  y2,
+) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  const uzunlukKaresi =
+    dx * dx + dy * dy;
+
+  // Sıfır uzunluklu çizgi koruması
+  if (uzunlukKaresi === 0) {
+    return {
+      x: x1,
+      y: y1,
+      mesafe: Math.hypot(
+        x - x1,
+        y - y1,
+      ),
+    };
   }
-  return { x: xx, y: yy, mesafe: mesafeBul(x, y, xx, yy) };
-}
 
 export function hesaplaSnap(mouseX, mouseY, haricTutulacakIdler = []) {
+  /*
+   * Fare noktasının çizgi doğrusu üzerindeki
+   * izdüşüm oranı.
+   */
+  let t =
+    (
+      (x - x1) * dx +
+      (y - y1) * dy
+    ) / uzunlukKaresi;
+
+  /*
+   * Sonsuz doğru değil, yalnızca gerçek çizgi
+   * parçası dikkate alınsın.
+   */
+  t = Math.max(0, Math.min(1, t));
+
+  const enYakinX = x1 + t * dx;
+  const enYakinY = y1 + t * dy;
+
+  return {
+    x: enYakinX,
+    y: enYakinY,
+    mesafe: Math.hypot(
+      x - enYakinX,
+      y - enYakinY,
+    ),
+  };
+}
+export function hesaplaSnap(mouseX, mouseY) {
   let enYakinNokta = {
     x: mouseX,
     y: mouseY,
@@ -262,26 +295,26 @@ export function kenarVarMi(x1, y1, x2, y2) {
   );
 }
 
-export function hesaplaGrupTasimaSnap(
+export function hesaplaCizgiTasimaSnap(
   tasinanCizgiler,
   hamDx,
   hamDy,
-  tasinanGrupIdleri,
+  tasinanCizgiIdleri,
 ) {
    let sonucDx = hamDx;
   let sonucDy = hamDy;
   let enKisaMesafe = SNAP_MESAFESI / viewport.scaleX;
 
-  const tasinanGrupSet = new Set(
-    (Array.isArray(tasinanGrupIdleri)
-      ? tasinanGrupIdleri
-      : [tasinanGrupIdleri]
+  const tasinanCizgiSet = new Set(
+    (Array.isArray(tasinanCizgiIdleri)
+      ? tasinanCizgiIdleri
+      : [tasinanCizgiIdleri]
     ).filter(Boolean),
   );
 
   const digerCizgiler = cizgiler.filter(
     (cizgi) =>
-      !tasinanGrupSet.has(
+      !tasinanCizgiSet.has(
         cizgi.groupId ?? cizgi.id,
       ),
   );
