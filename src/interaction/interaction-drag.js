@@ -271,7 +271,9 @@ function bagliKomsuUclariGuncelle() {
 }
 
 function cizgileriTasi(dunyaNoktasi) {
-  if (orijinalTasinanCizgiler.length === 0) return;
+  if (orijinalTasinanCizgiler.length === 0) {
+    return;
+  }
 
   const hamDx =
     dunyaNoktasi.x - suruklemeBaslangicX;
@@ -279,55 +281,57 @@ function cizgileriTasi(dunyaNoktasi) {
   const hamDy =
     dunyaNoktasi.y - suruklemeBaslangicY;
 
-  const hamX =
-    orijinalTasinanCizgi.x1 +
-    hamDx;
-
-  const hamY =
-    orijinalTasinanCizgi.y1 +
-    hamDy;
+  /*
+   * Seçili çizgilerin tamamı için uygulanacak
+   * ortak snap farkını hesapla.
+   */
+  const snapSonucu =
+    hesaplaCizgiTasimaSnap(
+      orijinalTasinanCizgiler,
+      hamDx,
+      hamDy,
+      tasinanCizgiIdleri,
+    );
 
   /*
-   * Taşınan çizgi ve ona bağlı komşu uçlar da bu karede
-   * hareket ettiğinden, kendi bir önceki konumlarına
-   * "yapışıp" hareketin donuk/kare kare ilerlemesine
-   * sebep olmasınlar diye snap adaylarından çıkarılır.
+   * Orijinal çizgilere hızlı erişim için harita oluştur.
    */
-  const haricTutulacakIdler = [
-    guncelCizgi.id,
-    ...bagliKomsuUclar.map(
-      (baglanti) => baglanti.cizgiId,
-    ),
-  ];
-
-  const snapSonucu =
-    hesaplaSnap(hamX, hamY, haricTutulacakIdler);
-
-  const dx =
-    snapSonucu.x -
-    orijinalTasinanCizgi.x1;
-
-  const dy =
-    snapSonucu.y -
-    orijinalTasinanCizgi.y1;
-
   const orijinalHarita = new Map(
     orijinalTasinanCizgiler.map(
       (cizgi) => [cizgi.id, cizgi],
     ),
   );
 
+  /*
+   * Seçili çizgileri orijinal konumlarına göre taşı.
+   * Her mousemove olayında mevcut konumun üstüne fark
+   * eklemek yerine başlangıç konumu kullanılır.
+   */
   for (const cizgi of cizgiler) {
-    const orijinal = orijinalHarita.get(cizgi.id);
+    const orijinal =
+      orijinalHarita.get(cizgi.id);
 
-    if (!orijinal) continue;
+    if (!orijinal) {
+      continue;
+    }
 
-    cizgi.x1 = orijinal.x1 + snapSonucu.dx;
-    cizgi.y1 = orijinal.y1 + snapSonucu.dy;
-    cizgi.x2 = orijinal.x2 + snapSonucu.dx;
-    cizgi.y2 = orijinal.y2 + snapSonucu.dy;
+    cizgi.x1 =
+      orijinal.x1 + snapSonucu.dx;
+
+    cizgi.y1 =
+      orijinal.y1 + snapSonucu.dy;
+
+    cizgi.x2 =
+      orijinal.x2 + snapSonucu.dx;
+
+    cizgi.y2 =
+      orijinal.y2 + snapSonucu.dy;
   }
 
+  /*
+   * Seçili olmayan ama seçili çizgilere bağlı
+   * komşu çizgi uçlarını da güncelle.
+   */
   bagliKomsuUclariGuncelle();
 }
 
