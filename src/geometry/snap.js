@@ -6,8 +6,6 @@ import {
 import { viewport } from "../core/stage.js";
 import { gridNoktasinaSnap } from "./grid.js";
 
-
-// Matematiksel Snap ve Hizalama fonksiyonlarımız kararlı halleriyle kalıyor
 export function mesafeBul(x1, y1, x2, y2) {
   return Math.hypot(x2 - x1, y2 - y1);
 }
@@ -26,7 +24,6 @@ export function cizgiUzerindeEnYakinNokta(
   const uzunlukKaresi =
     dx * dx + dy * dy;
 
-  // Sıfır uzunluklu çizgi koruması
   if (uzunlukKaresi === 0) {
     return {
       x: x1,
@@ -38,21 +35,12 @@ export function cizgiUzerindeEnYakinNokta(
     };
   }
 
-export function hesaplaSnap(mouseX, mouseY, haricTutulacakIdler = []) {
-  /*
-   * Fare noktasının çizgi doğrusu üzerindeki
-   * izdüşüm oranı.
-   */
   let t =
     (
       (x - x1) * dx +
       (y - y1) * dy
     ) / uzunlukKaresi;
 
-  /*
-   * Sonsuz doğru değil, yalnızca gerçek çizgi
-   * parçası dikkate alınsın.
-   */
   t = Math.max(0, Math.min(1, t));
 
   const enYakinX = x1 + t * dx;
@@ -67,114 +55,84 @@ export function hesaplaSnap(mouseX, mouseY, haricTutulacakIdler = []) {
     ),
   };
 }
-export function hesaplaSnap(mouseX, mouseY) {
-  let enYakinNokta = {
-    x: mouseX,
-    y: mouseY,
-    snapTuru: "NONE",
-  };
+export function hesaplaSnap(
+  mouseX,
+  mouseY,
+  haricTutulacakIdler = [],
+) {
+  const haricSet = new Set(
+    haricTutulacakIdler,
+  );
+
+  let snapX = mouseX;
+  let snapY = mouseY;
 
   let enKisaMesafe =
     SNAP_MESAFESI / viewport.scaleX;
 
-  /*
-   * Şu an sürüklenmekte olan çizgi(ler) kendi eski karesine
-   * "yapışıp" hareketin kare kare/donarak ilerlemesine yol
-   * açmasın diye snap adaylarından hariç tutulur.
-   */
-  const haricSet = new Set(haricTutulacakIdler);
+  for (const cizgi of cizgiler) {
+    if (haricSet.has(cizgi.id)) {
+      continue;
+    }
 
-  const snapAdayiCizgiler =
-    haricSet.size === 0
-      ? cizgiler
-      : cizgiler.filter(
-          (cizgi) => !haricSet.has(cizgi.id),
-        );
-
-  // Önce mevcut çizgilerin köşeleri
-  for (const cizgi of snapAdayiCizgiler) {
-    const d1 = mesafeBul(
-      mouseX,
-      mouseY,
-      cizgi.x1,
-      cizgi.y1,
-    );
-
-    if (d1 < enKisaMesafe) {
-      enKisaMesafe = d1;
-
-      enYakinNokta = {
+    const adayNoktalar = [
+      {
         x: cizgi.x1,
         y: cizgi.y1,
-        snapTuru: "CORNER",
-      };
-    }
-
-    const d2 = mesafeBul(
-      mouseX,
-      mouseY,
-      cizgi.x2,
-      cizgi.y2,
-    );
-
-    if (d2 < enKisaMesafe) {
-      enKisaMesafe = d2;
-
-      enYakinNokta = {
+      },
+      {
         x: cizgi.x2,
         y: cizgi.y2,
-        snapTuru: "CORNER",
-      };
-    }
-  }
+      },
+    ];
 
-  // Köşe bulunamadıysa çizgi kenarları
-  if (enYakinNokta.snapTuru === "NONE") {
-    for (const cizgi of snapAdayiCizgiler) {
-      const sonuc =
-        cizgiUzerindeEnYakinNokta(
-          mouseX,
-          mouseY,
-          cizgi.x1,
-          cizgi.y1,
-          cizgi.x2,
-          cizgi.y2,
-        );
+    for (const aday of adayNoktalar) {
+      const mesafe = mesafeBul(
+        mouseX,
+        mouseY,
+        aday.x,
+        aday.y,
+      );
 
-      if (sonuc.mesafe < enKisaMesafe) {
-        enKisaMesafe = sonuc.mesafe;
-
-        enYakinNokta = {
-          x: sonuc.x,
-          y: sonuc.y,
-          snapTuru: "EDGE",
-        };
+      if (mesafe < enKisaMesafe) {
+        enKisaMesafe = mesafe;
+        snapX = aday.x;
+        snapY = aday.y;
       }
     }
+
+    const kenarSonucu =
+      cizgiUzerindeEnYakinNokta(
+        mouseX,
+        mouseY,
+        cizgi.x1,
+        cizgi.y1,
+        cizgi.x2,
+        cizgi.y2,
+      );
+
+    if (kenarSonucu.mesafe < enKisaMesafe) {
+      enKisaMesafe = kenarSonucu.mesafe;
+      snapX = kenarSonucu.x;
+      snapY = kenarSonucu.y;
+    }
   }
 
-  // Nesneye (köşe ya da kenar) snap olduysa grid kontrol etme
-  if (
-    enYakinNokta.snapTuru === "CORNER" ||
-    enYakinNokta.snapTuru === "EDGE"
-  ) {
-    return enYakinNokta;
+  if (snapX === mouseX && snapY === mouseY) {
+    const gridSnap = gridNoktasinaSnap(
+      mouseX,
+      mouseY,
+    );
+
+    snapX = gridSnap.x;
+    snapY = gridSnap.y;
   }
 
-  const gridSonucu =
-    gridNoktasinaSnap(mouseX, mouseY);
-
-  if (gridSonucu.miknatislandiMi) {
-    return {
-      x: gridSonucu.x,
-      y: gridSonucu.y,
-      snapTuru: "GRID",
-    };
-  }
-
-  return enYakinNokta;
+  return {
+    x: snapX,
+    y: snapY,
+  };
 }
-
 // Çizim sırasında, üzerinde çalışılan nokta mevcut çizgilerin
 // köşelerinden biriyle yatayda veya dikeyde hizalandığında bunu
 // haber vermek (ve o eksene kilitlemek) için kullanılan mesafe.
@@ -188,6 +146,7 @@ const HIZALAMA_EKRAN_MESAFESI = 6;
  * o eksen için null döner.
  */
 export function hizalamaBul(nokta, haricTutulacakIdler = []) {
+
   const esik = HIZALAMA_EKRAN_MESAFESI / viewport.scaleX;
   const haricSet = new Set(haricTutulacakIdler);
 
@@ -313,11 +272,9 @@ export function hesaplaCizgiTasimaSnap(
   );
 
   const digerCizgiler = cizgiler.filter(
-    (cizgi) =>
-      !tasinanCizgiSet.has(
-        cizgi.groupId ?? cizgi.id,
-      ),
-  );
+  (cizgi) =>
+    !tasinanCizgiSet.has(cizgi.id),
+);
 
   for (const tasinanCizgi of tasinanCizgiler) {
     const tasinanNoktalar = [

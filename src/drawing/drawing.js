@@ -4,6 +4,7 @@ import {
   mevcutCizim,
   SNAP_MESAFESI,
   setMevcutCizim,
+  odalar,
 } from "../core/state.js";
 
 import {
@@ -71,14 +72,8 @@ stage.on("stagemousedown", (event) => {
     dunyaNoktasi.y,
   );
 
-  const nesneyeMiknatislandiMi =
-    snap.snapTuru === "OBJECT";
-
   if (aktifMod === "LINE") {
-    cizgiModundaTiklama(
-      snap,
-      nesneyeMiknatislandiMi,
-    );
+    cizgiModundaTiklama(snap);
   } else {
     kutuModundaTiklama(snap);
   }
@@ -113,10 +108,7 @@ stage.on("stagemousemove", (event) => {
   stage.update();
 });
 
-function cizgiModundaTiklama(
-  snap,
-  nesneyeMiknatislandiMi,
-) {
+function cizgiModundaTiklama(snap) {
   if (!mevcutCizim) {
     setMevcutCizim({
       x1: snap.x,
@@ -128,19 +120,7 @@ function cizgiModundaTiklama(
     return;
   }
 
-  // Nesneye değme iki türlü olabilir: tam bir köşeye (CORNER) ya da
-  // bir çizginin gövdesine/kenarına (EDGE). Her iki durumda da
-  // tıklama çizim zincirini bitirir (aşağıda). Ama açı kilidi sadece
-  // tam bir köşeye miknatislaninca atlanır; çünkü köşeye tıklamak
-  // "bu noktaya birleştir" gibi kesin bir niyettir ve açı kilidi
-  // noktayı kaydırıp döngünün tam kapanmasını engelleyebilir.
-  //
-  // Yakın duvarlar arasında dik/45° çizgi çekerken sırf yakındaki
-  // bir duvarın gövdesine (kenarına) değmiş olmak açı kilidini
-  // BOZMAMALI - aksi halde dik çizgi çizmek neredeyse imkansız
-  // hale gelir. O yüzden EDGE değmesinde açı kilidi normal şekilde
-  // uygulanmaya devam eder.
-  const nesneObjeyeDegdiMi =
+  const nesneyeMiknatislandiMi =
     snap.snapTuru === "CORNER" ||
     snap.snapTuru === "EDGE";
 
@@ -169,6 +149,11 @@ function cizgiModundaTiklama(
     mevcutCizim.x1 !== finalNokta.x ||
     mevcutCizim.y1 !== finalNokta.y;
 
+  /*
+   * Çizgi eklenmeden önce kaç oda olduğunu sakla.
+   */
+  const oncekiOdaSayisi = odalar.length;
+
   if (cizgiBosDegil) {
     cizgiEkle({
       x1: mevcutCizim.x1,
@@ -177,22 +162,50 @@ function cizgiModundaTiklama(
       y2: finalNokta.y,
     });
 
+    /*
+     * Kesişimlerden dolayı çizgiler bölünebilir.
+     * Oda hesabından önce bunu çalıştır.
+     */
     kesisimleriKoseyeDonustur();
+
+    /*
+     * Yeni çizgiden sonra odaları hemen hesapla.
+     */
+    odalariYenidenHesapla();
   }
 
-  if (nesneyeMiknatislandiMi) {
+  /*
+   * Oda sayısı arttıysa yeni bir kapalı alan oluşmuştur.
+   */
+  const yeniOdaOlustu =
+    odalar.length > oncekiOdaSayisi;
+
+  if (
+    yeniOdaOlustu ||
+    nesneyeMiknatislandiMi
+  ) {
+    /*
+     * Oda oluştuysa veya mevcut nesneye bağlandıysa
+     * çizim zincirini tamamen bitir.
+     */
     setMevcutCizim(null);
+
     onizlemeKatmani.graphics.clear();
-  } else {
-    setMevcutCizim({
-      x1: finalNokta.x,
-      y1: finalNokta.y,
-      x2: finalNokta.x,
-      y2: finalNokta.y,
-    });
+    hizalamaKatmani.graphics.clear();
+
+    stage.update();
+    return;
   }
 
-  odalariYenidenHesapla();
+  /*
+   * Oda oluşmadıysa çizim zincirine devam et.
+   */
+  setMevcutCizim({
+    x1: finalNokta.x,
+    y1: finalNokta.y,
+    x2: finalNokta.x,
+    y2: finalNokta.y,
+  });
 }
 
 function kutuModundaTiklama(snap) {
