@@ -124,23 +124,28 @@ function cizgiModundaTiklama(snap) {
     snap.snapTuru === "CORNER" ||
     snap.snapTuru === "EDGE";
 
-  const koseyeMiknatislandiMi =
-    snap.snapTuru === "CORNER";
-
+  /*
+   * Tıklama anında (satır kalıcı olarak eklenirken) CORNER ile EDGE
+   * aynı şekilde güvenilir kabul edilir: kullanıcı gerçekten bir
+   * nesneye (uca veya gövdeye) tıklayarak bitiriyorsa tam o nokta
+   * kullanılmalı; aksi halde açı kilidi/yuvarlama küçük bir kaymaya
+   * yol açıp kesişim/bölme mantığının bu noktayı ayrı bir köşe
+   * sanmasına (duplicate köşe) neden olur.
+   */
   const { nokta: kilitliNokta, hizalama } =
     cizimHedefNoktasiniHesapla(
       snap,
-      koseyeMiknatislandiMi,
+      nesneyeMiknatislandiMi,
     );
 
   const finalNokta = {
     x:
-      koseyeMiknatislandiMi || hizalama.x
+      nesneyeMiknatislandiMi || hizalama.x
         ? kilitliNokta.x
         : Math.round(kilitliNokta.x),
 
     y:
-      koseyeMiknatislandiMi || hizalama.y
+      nesneyeMiknatislandiMi || hizalama.y
         ? kilitliNokta.y
         : Math.round(kilitliNokta.y),
   };
@@ -222,16 +227,34 @@ function kutuModundaTiklama(snap) {
     return;
   }
 
-  const x1 = Math.round(mevcutCizim.x);
-  const y1 = Math.round(mevcutCizim.y);
-  const w = Math.round(mevcutCizim.w);
-  const h = Math.round(mevcutCizim.h);
+  /*
+   * Kenarlar önizleme sırasında mevcut bir çizgiye tam hizalanmışsa
+   * (veya başlangıç köşesiyse) o hassas değer aynen korunur; sadece
+   * hiçbir şeye hizalanmamış "serbest" kenarlar tam sayıya yuvarlanır.
+   * Aksi halde zaten hizalanmış bir köşe burada yuvarlanıp mevcut
+   * köşeden kayar ve yakınında ayrı bir köşe (duplicate) oluşturur.
+   */
+  const solX = mevcutCizim.solTam
+    ? mevcutCizim.x
+    : Math.round(mevcutCizim.x);
+
+  const sagX = mevcutCizim.sagTam
+    ? mevcutCizim.x + mevcutCizim.w
+    : Math.round(mevcutCizim.x + mevcutCizim.w);
+
+  const ustY = mevcutCizim.ustTam
+    ? mevcutCizim.y
+    : Math.round(mevcutCizim.y);
+
+  const altY = mevcutCizim.altTam
+    ? mevcutCizim.y + mevcutCizim.h
+    : Math.round(mevcutCizim.y + mevcutCizim.h);
 
   cizgiEkle([
-    { x1, y1, x2: x1 + w, y2: y1 },
-    { x1: x1 + w, y1, x2: x1 + w, y2: y1 + h },
-    { x1: x1 + w, y1: y1 + h, x2: x1, y2: y1 + h },
-    { x1, y1: y1 + h, x2: x1, y2: y1 },
+    { x1: solX, y1: ustY, x2: sagX, y2: ustY },
+    { x1: sagX, y1: ustY, x2: sagX, y2: altY },
+    { x1: sagX, y1: altY, x2: solX, y2: altY },
+    { x1: solX, y1: altY, x2: solX, y2: ustY },
   ]);
 
   kesisimleriKoseyeDonustur();
@@ -246,11 +269,15 @@ function kutuModundaTiklama(snap) {
  * Çizim sırasında bir sonraki noktayı belirler.
  *
  * Öncelik sırası:
- *   1) Tam bir köşeye (mevcut bir çizginin ucuna) miknatislandiysa, o
- *      nokta aynen kullanılır. Bir çizginin gövdesine/kenarına (EDGE)
- *      değmek bu kapsama GİRMEZ - yakın duvarlar arasında dik çizgi
- *      çekerken sırf bir duvarın gövdesine yakın olmak açı kilidini
- *      bozmasın diye.
+ *   1) `tamGuvenMi` true ise (arayana göre: sadece köşeye mi, yoksa
+ *      köşeye/kenara mı miknatislandığı anlamına gelebilir - bkz.
+ *      çağıran fonksiyonlar), snap noktası aynen kullanılır. Canlı
+ *      önizleme (`cizgiOnizlemesiniGuncelle`) sadece köşede bunu true
+ *      yapar - yakın duvarlar arasında dik çizgi çekerken sırf bir
+ *      duvarın gövdesine yakın olmak açı kilidini bozmasın diye. Kalıcı
+ *      ekleme anında (`cizgiModundaTiklama`) ise kenar da güvenilir
+ *      sayılır - aksi halde kesişim/bölme mantığı bu noktayı gerçek
+ *      birleşim noktasından ayrı, duplicate bir köşe sanabilir.
  *   2) Aksi halde önce açı kilidi uygulanır (Shift basılı değilken 45°'nin
  *      katlarına kilitlenir, Shift basılıyken serbest açı). Eksen kilidi
  *      HER ZAMAN önceliklidir; hizalama cetveli kilidi bozmaz.
@@ -262,9 +289,9 @@ function kutuModundaTiklama(snap) {
  */
 function cizimHedefNoktasiniHesapla(
   snap,
-  koseyeMiknatislandiMi,
+  tamGuvenMi,
 ) {
-  if (koseyeMiknatislandiMi) {
+  if (tamGuvenMi) {
     return {
       nokta: { x: snap.x, y: snap.y },
       hizalama: { x: null, y: null },
@@ -451,6 +478,46 @@ function kutuOnizlemesiniGuncelle(snap) {
 
   mevcutCizim.w = Math.abs(rawW);
   mevcutCizim.h = Math.abs(rawH);
+
+  /*
+   * Her kenar için "tam" (yuvarlanmadan aynen kullanılabilir) olup
+   * olmadığını sakla: başlangıç köşesiyse (zaten hesaplaSnap'ten gelen
+   * hassas değer) ya da mevcut bir çizginin ucuna hizalanmışsa kenar
+   * tamdır. Bu, tıklama anında sadece gerçekten "serbest" kenarların
+   * yuvarlanmasını sağlar.
+   */
+  const sagX = mevcutCizim.x + mevcutCizim.w;
+  const altY = mevcutCizim.y + mevcutCizim.h;
+
+  const xHizaliMi = (deger) =>
+    cizgiler.some(
+      (cizgi) =>
+        Math.abs(deger - cizgi.x1) < esikMesafe ||
+        Math.abs(deger - cizgi.x2) < esikMesafe,
+    );
+
+  const yHizaliMi = (deger) =>
+    cizgiler.some(
+      (cizgi) =>
+        Math.abs(deger - cizgi.y1) < esikMesafe ||
+        Math.abs(deger - cizgi.y2) < esikMesafe,
+    );
+
+  mevcutCizim.solTam =
+    mevcutCizim.x === mevcutCizim.startX ||
+    xHizaliMi(mevcutCizim.x);
+
+  mevcutCizim.sagTam =
+    sagX === mevcutCizim.startX ||
+    xHizaliMi(sagX);
+
+  mevcutCizim.ustTam =
+    mevcutCizim.y === mevcutCizim.startY ||
+    yHizaliMi(mevcutCizim.y);
+
+  mevcutCizim.altTam =
+    altY === mevcutCizim.startY ||
+    yHizaliMi(altY);
 
   onizlemeKatmani.graphics
     .beginFill("rgba(156, 14, 233, 0.2)")

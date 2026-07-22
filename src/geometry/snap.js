@@ -66,10 +66,14 @@ export function hesaplaSnap(
 
   let snapX = mouseX;
   let snapY = mouseY;
+  let snapTuru = "NONE";
 
   let enKisaMesafe =
     SNAP_MESAFESI / viewport.scaleX;
 
+  /*
+   * Önce bütün çizgilerin köşeleri (uç noktaları) taranır.
+   */
   for (const cizgi of cizgiler) {
     if (haricSet.has(cizgi.id)) {
       continue;
@@ -98,23 +102,41 @@ export function hesaplaSnap(
         enKisaMesafe = mesafe;
         snapX = aday.x;
         snapY = aday.y;
+        snapTuru = "CORNER";
       }
     }
+  }
 
-    const kenarSonucu =
-      cizgiUzerindeEnYakinNokta(
-        mouseX,
-        mouseY,
-        cizgi.x1,
-        cizgi.y1,
-        cizgi.x2,
-        cizgi.y2,
-      );
+  /*
+   * Kenarlar (gövdeler) SADECE bir köşe bulunamadıysa taranır. Bir
+   * çizginin gövdesi üzerindeki en yakın nokta, matematiksel olarak
+   * o çizginin ucuna (köşeye) her zaman en az köşe kadar yakındır;
+   * köşe zaten bulunmuşken bu taramaya devam etmek, köşenin kendi
+   * gövdesindeki neredeyse aynı ama farklı bir noktayla ezilip
+   * yanına ayrı bir "duplicate köşe" oluşmasına yol açar.
+   */
+  if (snapTuru === "NONE") {
+    for (const cizgi of cizgiler) {
+      if (haricSet.has(cizgi.id)) {
+        continue;
+      }
 
-    if (kenarSonucu.mesafe < enKisaMesafe) {
-      enKisaMesafe = kenarSonucu.mesafe;
-      snapX = kenarSonucu.x;
-      snapY = kenarSonucu.y;
+      const kenarSonucu =
+        cizgiUzerindeEnYakinNokta(
+          mouseX,
+          mouseY,
+          cizgi.x1,
+          cizgi.y1,
+          cizgi.x2,
+          cizgi.y2,
+        );
+
+      if (kenarSonucu.mesafe < enKisaMesafe) {
+        enKisaMesafe = kenarSonucu.mesafe;
+        snapX = kenarSonucu.x;
+        snapY = kenarSonucu.y;
+        snapTuru = "EDGE";
+      }
     }
   }
 
@@ -126,11 +148,13 @@ export function hesaplaSnap(
 
     snapX = gridSnap.x;
     snapY = gridSnap.y;
+    snapTuru = "GRID";
   }
 
   return {
     x: snapX,
     y: snapY,
+    snapTuru,
   };
 }
 // Çizim sırasında, üzerinde çalışılan nokta mevcut çizgilerin
